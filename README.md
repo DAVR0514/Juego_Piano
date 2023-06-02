@@ -8,8 +8,7 @@ El juego se inicia al pulsar algunas teclas de juego. A continuación, una secue
 ![image](foto2.jpg)
 ![image](foto1.jpg)
 
-Para la elaboración del mando se utilizó un Arduino y un módulo Bluetooth, su función es leer las pulsaciones que se harán en las teclas del piano las cuales están localizadas en el panel superior del mando, y enviarlas en forma de información de manera  inalámbrica e instantanea al dispositivo en el cuál se ejecuta el juego y que este procese e interprete dicha información para ejecutar las acciones que podrán observar al jugar.
-
+Para la elaboración del mando, se utilizó un Arduino y un módulo Bluetooth. Su función principal es captar las pulsaciones de las teclas del piano, las cuales se encuentran ubicadas en el panel superior del mando. Estas pulsaciones se envían de forma inalámbrica e instantánea a un dispositivo donde se ejecuta el juego. El dispositivo receptor procesa e interpreta esta información para llevar a cabo las acciones correspondientes durante el juego.
 ## INFOGRAFIA
 ![image](foto3.png)
 
