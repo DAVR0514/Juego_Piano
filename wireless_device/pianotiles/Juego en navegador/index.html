@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+        <script src="https://cdn.babylonjs.com/ammo.js"></script>
+        <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+        <script src="https://cdn.babylonjs.com/cannon.js"></script>
+        <script src="https://cdn.babylonjs.com/Oimo.js"></script>
+        <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
+        <script src="https://cdn.babylonjs.com/babylon.js"></script>
+        <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+            
+            #canvasZone {
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+    </head>
+<body>
+<audio src="C:\Users\Asus\Desktop\pianotiles\Beethoven - Für Elise(MP3_128K).mp3" autoplay loop controls></audio>
+    <div>
+		<div><button id="connectDevice" name="connectDevice">Connect BT Device</button></div>
+	    <div id="canvasZone"><canvas id="renderCanvas"></canvas></div>
+	</div>
+	<script src="btdevice.js"></script>
+    <script>
+		const mydevice = new BTDevice();
+		window.onload = function() {
+			// Connect / Disconnect button
+			connectDevice.addEventListener("click", () => {
+				mydevice.init( function(status){
+					if (status) {
+						connectDevice.innerHTML = "Disconnect BT Device";
+					} else {
+						connectDevice.innerHTML = "Connect BT Device";
+					}
+				});
+			});
+		}
+    </script>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        }
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        var song = [
+  {t: 3, k: 1}, 
+  {t: 6, k: 2},
+  {t: 9, k: 4},
+  {t: 12, k: 8},
+  {t: 15, k: 9},
+  {t: 18, k: 4},
+  {t: 21, k: 6},
+  {t: 24, k: 8},
+  {t: 27, k: 1},
+  {t: 30, k: 1},
+  {t: 33, k: 2},
+  {t: 36, k: 4},
+  {t: 39, k: 4},
+  {t: 42, k: 3},
+  {t: 45, k: 2},
+  {t: 48, k: 12},
+  {t: 51, k: 4},
+  {t: 54, k: 8},
+  {t: 57, k: 3},
+  {t: 60, k: 15},
+  {t: 63, k: 5},
+  {t: 66, k: 7},
+  {t: 69, k: 10},
+  {t: 72, k: 11},
+  {t: 75, k: 13},
+  {t: 78, k: 14},
+  {t: 81, k: 16},
+  {t: 84, k: 17},
+  {t: 87, k: 18},
+  {t: 90, k: 20},
+  {t: 93, k: 21},
+  {t: 96, k: 22},
+  {t: 99, k: 23},
+  {t: 102, k: 24},
+  {t: 105, k: 25},
+  {t: 108, k: 26},
+  {t: 111, k: 27},
+  {t: 114, k: 28},
+  {t: 117, k: 29},
+  {t: 120, k: 30},
+  {t: 123, k: 31},
+  {t: 126, k: 32},
+  {t: 129, k: 33},
+  {t: 132, k: 34},
+  {t: 135, k: 35},
+  {t: 138, k: 36},
+  {t: 141, k: 37},
+  {t: 144, k: 38},
+  {t: 147, k: 39}
+]; 
+
+var songTiles = [];
+var songTileStatus = [];
+
+var totalPoints = 0;
+var pointsText;
+
+var timeStamp = 0;
+var currentTile = -1;
+
+var gameStarted = false;
+var gameOver = false;
+
+
+// Find child mesh inside an object
+var findMesh = (obj, childName) => {
+    return obj.getChildMeshes(false, (child) => {
+        if (child.name == childName) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    })[0];
+}
+
+//Crea una tecla
+var createTile = function ( name, xpos, color, scene ) {
+    //Crea la tecla
+    const tile = BABYLON.MeshBuilder.CreateBox("tile"+name, {width: 1, height: 0.2, depth: 0.5});
+    tile.position.x = xpos;
+    const tileMat = new BABYLON.StandardMaterial("tileMat"+name, scene);
+    tileMat.diffuseColor = color;
+    tile.material = tileMat;
+
+    //Crea la esfera que se anima cuando se falla la tecla
+    const failSphere = BABYLON.MeshBuilder.CreateSphere("failSphere", {diameterX: 0.8, diameterY: 0.7, diameterZ: 0.5});
+    failSphere.parent = tile;
+    const failMat = new BABYLON.StandardMaterial("failMat", scene);
+    failMat.alpha = 0.0;
+    failMat.emissiveColor = new BABYLON.Color3(0.66, 0.11, 0.71, 0.86);
+    failSphere.material = failMat;
+
+    return tile;
+}
+
+var animTileOk;
+var animTileKeys;
+var animTileFail;
+var animFailKeys;
+
+var createAnimations = function() {
+    //Animación cuando se acierta en la tecla
+    animTileOk = new BABYLON.Animation("tileOk", "rotation.z", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    animTileKeys = []; 
+    animTileKeys.push({
+        frame: 0,
+        value: 0
+    }); 
+    animTileKeys.push({
+        frame: 15,
+        value: Math.PI / 2
+    });
+    animTileOk.setKeys(animTileKeys);
+        
+    //Animación cuando se falla en la tecla
+    animTileFail = new BABYLON.Animation("tileFail", "material.alpha", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    animFailKeys = [];
+    animFailKeys.push({
+        frame: 0,
+        value: 0
+    });
+    animFailKeys.push({
+        frame: 10,
+        value: 0.4
+    });
+    animFailKeys.push({
+        frame: 20,
+        value: 0.4
+    });
+    animFailKeys.push({
+        frame: 30,
+        value: 0
+    });
+    animTileFail.setKeys(animFailKeys);   
+}
+
+// Adiciona la animación a la tecla
+var addTileAnimations = function ( tile ) {
+    tile.animations.push(animTileOk);
+    findMesh(tile, "failSphere").animations.push(animTileFail);
+}
+
+//Crea un grupo de teclas y les asocia las animaciones
+var createTileGroup = function ( scene, tone ) {
+    const tileGroup = BABYLON.MeshBuilder.CreateBox("tileGroup", {size: 0.01});
+    tileGroup.isVisible = false;
+    if ( (tone & 1) == 1) {
+        const tile1 = createTile( "1", -2,  new BABYLON.Color3(0.5, 0.5, 1), scene );
+        tile1.parent = tileGroup;
+        addTileAnimations(tile1);
+    }
+    if ( (tone & 2) == 2) {
+        const tile2 = createTile( "2", -0.7, new BABYLON.Color3(0.8, 0.07, 0.07), scene );
+        tile2.parent = tileGroup;
+        addTileAnimations(tile2);
+    }
+    if ( (tone & 4) == 4) {
+        const tile3 = createTile( "4", 0.7, new BABYLON.Color3(0.77, 0.92, 0.09), scene );
+        tile3.parent = tileGroup;
+        addTileAnimations(tile3);
+    }
+    if ( (tone & 8) == 8) {
+        const tile4 = createTile( "8", 2, new BABYLON.Color3(0.13, 0.68, 0.01), scene );
+        tile4.parent = tileGroup;
+        addTileAnimations(tile4);
+    }
+    return tileGroup;
+}
+
+//Crea los botones de la interfaz gráfica
+var buttonTile = function ( buttonName, colorName, posVal, action ) {
+    var buttonX = BABYLON.GUI.Button.CreateSimpleButton("but"+buttonName, buttonName);
+    buttonX.width = "80px"
+    buttonX.height = "40px";
+    buttonX.color = "white";
+    buttonX.cornerRadius = 20;
+    buttonX.background = colorName;
+    buttonX.left = posVal;
+    buttonX.top = "45%";
+    buttonX.onPointerUpObservable.add(action);
+    return buttonX;
+}   
+
+//Función que se invoca cuando una tecla es presionada, 
+//si la tecla presionada es correcta, realiza la animación que muestra que fue correcta
+var pressTile = function ( scene, key ) {
+    if (!gameStarted) {
+        startGame(scene);
+        return;
+    }
+    // check index for current tile
+    if ( (currentTile>=0) && (currentTile < song.length) ) {
+        // check if current tile is within active region
+        if ( (songTiles[currentTile].position.z > -1.5) && (songTiles[currentTile].position.z <1.5) ) {
+            // check if key is correct
+            if ( (songTileStatus[currentTile] & key) == key ) {
+                // if correct, perform animation
+                scene.beginAnimation( findMesh(songTiles[currentTile], "tile"+key), 0, 15, false );
+                // clear status to avoid double points or double animation
+                songTileStatus[currentTile] &= ~key;
+                // update points
+                totalPoints++;
+                pointsText.text = "Points: " + totalPoints;
+            }
+        }
+    } 
+}
+
+// Crea las teclas que corresponden a la canción
+var createSongTiles = function ( scene ) {
+    for (let i = 0; i < song.length; i++) {
+        songTiles[i] = createTileGroup( scene, song[i].k );
+        songTiles[i].position.z = song[i].t * 2;
+        songTileStatus[i] = song[i].k;
+    }
+}
+
+// Inicia el juego
+var startGame = function ( scene ) {
+    // Create tiles
+    createSongTiles(scene);
+    // Update variables
+    currentTile = -1;
+    timeStamp = 0;
+    totalPoints = 0;
+    pointsText.text = "Points: 0";
+    // Update status
+    gameStarted = true;
+    gameOver = false;
+}
+
+
+var createScene = function () {
+    // This creates a basic Babylon Scene object (non-mesh)
+    var scene = new BABYLON.Scene(engine);
+  
+    // Connect to device
+    const dsm = new BABYLON.DeviceSourceManager(engine);
+  
+    // This creates and positions a free camera (non-mesh)
+    var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+
+    // This targets the camera to scene origin
+    camera.setTarget(BABYLON.Vector3.Zero());
+
+    // This attaches the camera to the canvas
+    camera.attachControl(canvas, true);
+
+    // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
+    var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+    // Default intensity is 1. Let's dim the light a small amount
+    light.intensity = 0.7;
+
+    // Create tile animations
+    createAnimations();
+
+    // Create ground
+    var ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 6, height: 3}, scene);
+
+    //GUI Elements        
+    var guiElements = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+    pointsText = new BABYLON.GUI.TextBlock();
+    pointsText.text = "Press any key to start";
+    pointsText.color = "white";
+    pointsText.fontSize = 24;
+    pointsText.top = "-45%";
+    guiElements.addControl(pointsText);    
+
+    guiElements.addControl( buttonTile( "A", "blue", "-30%", function() { pressTile(scene, 1); } ) );
+    guiElements.addControl( buttonTile( "S", "red", "-10%", function() { pressTile(scene, 2); }) );
+    guiElements.addControl( buttonTile( "D", "yellow", "10%", function() { pressTile(scene, 4); }) );
+    guiElements.addControl( buttonTile( "F", "green", "30%", function() { pressTile(scene, 8); }) );
+      
+    gameStarted = false;
+    gameOver = false;
+
+    // Main game loop
+    scene.registerBeforeRender(function () {
+    if (gameStarted && !gameOver) {
+        for (let i = 0; i < songTiles.length; i++) {
+            // Update tile positions that are in view range
+            if (songTiles[i].position.z > -10) {
+                songTiles[i].position.z -= 0.05;
+            }
+
+            // Update currentTile
+            if (songTiles[i].position.z > -1.5 && songTiles[i].position.z < 1.5) {
+                currentTile = i;
+            }
+
+            // Check game over
+            if (currentTile == songTiles.length - 1 && songTiles[currentTile].position.z < -10) {
+                pointsText.text = "Game Over. Points: " + totalPoints;
+                gameStarted = false;
+                gameOver = true;
+            }
+
+            // Check if a tile is missed
+            if (songTiles[i].position.z < -1.5 && songTileStatus[i] != 0) {
+                for (let j = 1; j <= 8; j *= 2) {
+                    if ((songTileStatus[i] & j) == j) {
+                        scene.beginAnimation(
+                            findMesh(findMesh(songTiles[i], "tile" + j), "failSphere"),
+                            0,
+                            30,
+                            false
+                        );
+                    }
+                }
+                songTileStatus[i] = 0;
+            }
+
+            // Incrementar gradualmente la velocidad en incrementos pequeños
+            var speedIncrement = -0.001; // Ajusta este valor según tus necesidades
+
+            // Aumentar la velocidad en intervalos regulares o al alcanzar ciertos puntos en el juego
+            if (totalPoints % 10 === 0) {
+                // Ajusta el incremento de velocidad aquí según tus necesidades
+                speedIncrement *= 1.3;
+            }
+
+            // Actualizar la velocidad de movimiento de los objetos o la velocidad de reacción requerida del jugador
+            var currentPosition = songTiles[i].position.z;
+            var targetPosition = song[i].t * 2;
+            var speed = (targetPosition - currentPosition) * speedIncrement;
+            songTiles[i].position.z += speed;
+        }
+        timeStamp++;
+    }
+
+
+
+        // Read keyboard
+        if (dsm.getDeviceSource(BABYLON.DeviceType.Keyboard)) {
+            if (dsm.getDeviceSource(BABYLON.DeviceType.Keyboard).getInput(65) == 1) {
+                pressTile(scene, 1);
+            }
+            if (dsm.getDeviceSource(BABYLON.DeviceType.Keyboard).getInput(83) == 1) {
+                pressTile(scene, 2);    
+            }
+            if (dsm.getDeviceSource(BABYLON.DeviceType.Keyboard).getInput(68) == 1) {
+                pressTile(scene, 4);
+            }
+            if (dsm.getDeviceSource(BABYLON.DeviceType.Keyboard).getInput(70) == 1) {
+                pressTile(scene, 8);
+            }
+        }
+		mydevice.read(function(str){ 
+			const obj = JSON.parse(str,	function (key, value) {
+			  if ( (key == "B1") && (value == "1")) {
+				pressTile(scene, 1);
+			  }
+			  if ( (key == "B2") && (value == "1")) {
+				pressTile(scene, 2);
+			  }
+			  if ( (key == "B3") && (value == "1")) {
+				pressTile(scene, 4);
+			  }
+			  if ( (key == "B4") && (value == "1")) {
+				pressTile(scene, 8);
+			  }
+
+
+			});
+		});
+    });
+
+
+
+
+    return scene;
+};
+                window.initFunction = async function() {
+                    
+                    
+                    
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    window.engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        startRenderLoop(engine, canvas);
+        window.scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene                    
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
